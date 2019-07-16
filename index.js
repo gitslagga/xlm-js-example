@@ -39,89 +39,89 @@ const getBalance = async (req, res) => {
 
 
 // Get 100 coins from root account
-const getFromFaucet = async (req,res) =>{
-    try{
+const getFromFaucet = async (req, res) => {
+    try {
         const pk = req.body.pk
-        if(pk){
+        if (pk) {
             // faucet is our root account. Make sure you replace this value with your key
             let sourceKeys = Stellar.Keypair.fromSecret("SDJ5AQWLIAYT22TCYSKOQALI3SNUMPAR63SEL73ASALDP6PYDN54FARM");
             // loading root account
             server.loadAccount(sourceKeys.publicKey())
-            .then(function(sourceAccount) {
-                let txn = new Stellar.TransactionBuilder(sourceAccount)
-                            .addOperation(
-                                Stellar.Operation.createAccount({
+                .then(function (sourceAccount) {
+                    let txn = new Stellar.TransactionBuilder(sourceAccount)
+                        .addOperation(
+                            Stellar.Operation.createAccount({
                                 destination: pk,
-                                startingBalance: "100"}))
-                            .addMemo(Stellar.Memo.text('Test Transaction'))
-                            .build();
-                txn.sign(sourceKeys);
-                return server.submitTransaction(txn);
+                                startingBalance: "100"
+                            }))
+                        .addMemo(Stellar.Memo.text('Test Transaction'))
+                        .build();
+                    txn.sign(sourceKeys);
+                    return server.submitTransaction(txn);
                 })
-            .then(function(result) {
-                res.send({"Msg" : `SUCCESS : ${JSON.stringify(result)}`})
-            })
-            .catch(function(error) {
-                console.error('Something went wrong!', error);
-                res.send({"Msg" : `ERROR : ${error}`})
-            });
-        }else{
-            res.send({"Msg" : "ERROR : please provide public key!"})
+                .then(function (result) {
+                    res.send({ "Msg": `SUCCESS : ${JSON.stringify(result)}` })
+                })
+                .catch(function (error) {
+                    console.error('Something went wrong!', error);
+                    res.send({ "Msg": `ERROR : ${error}` })
+                });
+        } else {
+            res.send({ "Msg": "ERROR : please provide public key!" })
         }
-    }catch(err){
-        res.send({"Msg" : `ERROR : ${error}`})
+    } catch (err) {
+        res.send({ "Msg": `ERROR : ${error}` })
     }
 }
 
-                
+
 // Do transactions
-const makePayment = async (req,res) => {
- 
-    const {from, to, value} =  req.body;
+const makePayment = async (req, res) => {
+    const { from, to, value } = req.body;
     //Let get the secret of the spender
     const spender = accounts.find((acc) => {
-        if(acc.pk === from) return acc;
+        if (acc.pk === from) return acc;
     })
-    if(spender && spender != null){
+    if (spender && spender != null) {
         // First, check to make sure that the destination account exists.
         // You could skip this, but if the account does not exist, you will be charged
         // the transaction fee when the transaction fails.
         server.loadAccount(to)
-        .catch((err)=>{
-            res.send({"Msg" : `Error : receiever ${to} not found!`})
-        })
-        .then(() =>{
-            // lets load spender account
-            return server.loadAccount(from);
-        })
-        .then((spenderAccount) => {
-            // Start building the transaction.
-            const transaction = new Stellar.TransactionBuilder(spenderAccount)
-            .addOperation(Stellar.Operation.payment({
-                destination: to,
-                // Because Stellar allows transaction in many currencies, you must
-                // specify the asset type. The special "native" asset represents Lumens.
-                asset: Stellar.Asset.native(),
-                amount: value
-            }))
-            // A memo allows you to add your own metadata to a transaction. It's
-            // optional and does not affect how Stellar treats the transaction.
-            .addMemo(Stellar.Memo.text('Test Transaction'))
-            .build()
-            // get the key pair for signing the transaction
-            const pairA =  Stellar.Keypair.fromSecret(spender.sk);
-            // Sign the transaction to prove you are actually the person sending it
-            transaction.sign(pairA)
-            return server.submitTransaction(transaction);
-        })
-        .then((result)=>{
-            res.send({"Msg" : JSON.stringify(result, null, 2)})
-        })
-        .catch((err)=>{
-            res.send({"Msg" : `Error : Somethis went wrong : ${JSON.stringify(err.response.data.extras)}`})
-        })
-    }else{
-        res.send({"Msg" : `Error : spender  ${to} not found!`})
+            .catch((err) => {
+                res.send({ "Msg": `Error : receiever ${to} not found!` })
+            })
+            .then(() => {
+                // lets load spender account
+                return server.loadAccount(from);
+            })
+            .then((spenderAccount) => {
+                // Start building the transaction.
+                const transaction = new Stellar.TransactionBuilder(spenderAccount)
+                    .addOperation(Stellar.Operation.payment({
+                        destination: to,
+                        // Because Stellar allows transaction in many currencies, you must
+                        // specify the asset type. The special "native" asset represents Lumens.
+                        asset: Stellar.Asset.native(),
+                        amount: value
+                    }))
+                    // A memo allows you to add your own metadata to a transaction. It's
+                    // optional and does not affect how Stellar treats the transaction.
+                    .addMemo(Stellar.Memo.text('Test Transaction'))
+                    .build()
+                // get the key pair for signing the transaction
+                const pairA = Stellar.Keypair.fromSecret(spender.sk);
+                // Sign the transaction to prove you are actually the person sending it
+                transaction.sign(pairA)
+                return server.submitTransaction(transaction);
+            })
+            .then((result) => {
+                res.send({ "Msg": JSON.stringify(result, null, 2) })
+            })
+            .catch((err) => {
+                res.send({ "Msg": `Error : Somethis went wrong : ${JSON.stringify(err.response.data.extras)}` })
+            })
+    } else {
+        res.send({ "Msg": `Error : spender  ${to} not found!` })
     }
 }
 
