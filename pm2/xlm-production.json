@@ -1,0 +1,12 @@
+{
+    "apps": [{
+        "name": "xlm-production",
+        "script": "./index.js",
+        "log_date_format": "YYYY-MM-DD HH:mm:ss SSS",
+        "env": {
+            "NODE_ENV": "production"
+        },
+        "output": "/tmp/wwwlogs/xlm-production/out.log",
+        "error": "/tmp/wwwlogs/xlm-production/error.log"
+    }]
+}

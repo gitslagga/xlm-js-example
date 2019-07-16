@@ -1,0 +1,35 @@
+﻿Unit Term
+1，Stellar Lumens = XML
+2，100 stroops = 0.00001 XLM
+3，each account must have a minimum balance of 1 lumen 
+5，Stream Request: 
+The way a caller initiates this mode is by setting Accept: text/event-stream in the HTTP header when you make the request
+6，The minimum balance is calculated using the base reserve, which is 0.5 XLM
+
+https://www.stellar.org/laboratory/#account-creator?network=test
+https://horizon-testnet.stellar.org/accounts/GBD57G76FY5PXNWL462PV5MUBUK645PQDBHUZAWOLZFCDSWRCLXNHSY4
+
+Public Key		GBD57G76FY5PXNWL462PV5MUBUK645PQDBHUZAWOLZFCDSWRCLXNHSY4
+Secret Key		SDVLNWP7OGQ7O5LFT62333ZVUX63X6PMLO5NOU3O23TSQCHWZ4P2Q5RZ
+
+Public Key		GA5V2AGSMDXYIZ7PGGBII4GGBRBMNI5ODHMSFRMNFW4JPSDPUAGCH6IB
+Secret Key		SAJN6P6IINLEB7RKJLGM5TGUL727VMHTBX6SIR3ILT2LDP2XPT72LZQT
+
+6，Building a Transaction
+IMPORTANT :
+It’s possible that you will not receive a response from the Horizon server due to a bug, network conditions, etc. 
+In such a situation it’s impossible to determine the status of your transaction. 
+That’s why you should always save a built transaction (or transaction encoded in XDR format) in a variable or a database and resubmit it if you don’t know its status. 
+If the transaction has already been successfully applied to the ledger, Horizon will simply return the saved result and not attempt to submit the transaction again. 
+Only in cases where a transaction’s status is unknown (and thus will have a chance of being included into a ledger) will a resubmission to the network occur.
+
+7，Receive Payments
+
+8，BlockChain Password
+Pubnet： 'Public Global Stellar Network ; September 2015'
+Testnet： 'Test SDF Network ; September 2015'
+
+9，Stellar Development Foundation (SDF)			Stellar Consensus Protocol (SCP)
+
+10，XLM Run Configuration
+https://github.com/stellar/stellar-core/blob/master/docs/stellar-core_example.cfg
