@@ -1,10 +1,12 @@
 const express = require('express')
+const bodyParser = require('body-parser')
 const logger = require('./lib/logger')
 const config = require('./lib/config')
 const app = express()
 
-const StellarSdk = require('stellar-sdk')
-const server = new StellarSdk.Server(config.node_url)
+const Stellar = require('stellar-sdk')
+Stellar.Network.useTestNetwork()
+const server = new Stellar.Server(config.node_url)
 
 app.use(bodyParser.json())
 
@@ -14,134 +16,106 @@ app.use(function timeLog(req, res, next) {
 })
 
 const createAccount = async (req, res) => {
-    const pair = Stellar.Keypair.random()
-    const account = {
-        publicKey: pair.publicKey(),
-        secret: pair.secret()
+    try {
+        const pair = Stellar.Keypair.random()
+        const account = {
+            publicKey: pair.publicKey(),
+            secret: pair.secret()
+        }
+        res.json({ code: 0, account })
+    } catch (error) {
+        logger.info("createAccount error: ", error)
+        res.json({ code: 405, msg: error.toString()})
     }
-    res.json({ code: 0, account })
 }
 
 const getBalance = async (req, res) => {
-    const address = req.body.address;
-    if (!req.body || !req.body.address)
-        return res.json({ code: 404, msg: 'missing params' })
-
-    let balance = 0;
-    account = await server.loadAccount(address)
-    account.balances.forEach((bal) => {
-        logger.info("Type:", balance.asset_type, ", Balance:", balance.balance)
-        balance = balance + bal.balance
-    })
-    res.send({ code: 0, assets: balance })
-}
-
-
-
-// Get 100 coins from root account
-const getFromFaucet = async (req, res) => {
     try {
-        const pk = req.body.pk
-        if (pk) {
-            // faucet is our root account. Make sure you replace this value with your key
-            let sourceKeys = Stellar.Keypair.fromSecret("SDJ5AQWLIAYT22TCYSKOQALI3SNUMPAR63SEL73ASALDP6PYDN54FARM");
-            // loading root account
-            server.loadAccount(sourceKeys.publicKey())
-                .then(function (sourceAccount) {
-                    let txn = new Stellar.TransactionBuilder(sourceAccount)
-                        .addOperation(
-                            Stellar.Operation.createAccount({
-                                destination: pk,
-                                startingBalance: "100"
-                            }))
-                        .addMemo(Stellar.Memo.text('Test Transaction'))
-                        .build();
-                    txn.sign(sourceKeys);
-                    return server.submitTransaction(txn);
-                })
-                .then(function (result) {
-                    res.send({ "Msg": `SUCCESS : ${JSON.stringify(result)}` })
-                })
-                .catch(function (error) {
-                    console.error('Something went wrong!', error);
-                    res.send({ "Msg": `ERROR : ${error}` })
-                });
-        } else {
-            res.send({ "Msg": "ERROR : please provide public key!" })
-        }
-    } catch (err) {
-        res.send({ "Msg": `ERROR : ${error}` })
+        if (!req.body || !req.body.address)
+            return res.json({ code: 404, msg: 'missing params' })
+
+        
+        logger.info("request address: ", req.body.address)
+
+        const account = await server.loadAccount(req.body.address)
+        res.json({ code: 0, assets: account.balances })
+    } catch (error) {
+        logger.info("getBalance error: ", error)
+        res.json({ code: 405, msg: error.toString()})
     }
 }
 
+const sendTransaction = async (req, res) => {
+    try {
+        if (!req.body || !req.body.secret || !req.body.to || !req.body.value || !req.body.memo)
+            return res.json({ code: 404, msg: 'missing params' })
 
-// Do transactions
-const makePayment = async (req, res) => {
-    const { from, to, value } = req.body;
-    //Let get the secret of the spender
-    const spender = accounts.find((acc) => {
-        if (acc.pk === from) return acc;
-    })
-    if (spender && spender != null) {
-        // First, check to make sure that the destination account exists.
-        // You could skip this, but if the account does not exist, you will be charged
-        // the transaction fee when the transaction fails.
-        server.loadAccount(to)
-            .catch((err) => {
-                res.send({ "Msg": `Error : receiever ${to} not found!` })
-            })
-            .then(() => {
-                // lets load spender account
-                return server.loadAccount(from);
-            })
-            .then((spenderAccount) => {
-                // Start building the transaction.
-                const transaction = new Stellar.TransactionBuilder(spenderAccount)
+        logger.info("request address: ", req.body.to, req.body.value, req.body.memo)
+        let sourceKeys = Stellar.Keypair.fromSecret(req.body.secret)
+
+        server.loadAccount(sourceKeys.publicKey())
+            .then(function (sourceAccount) {
+                let txn = new Stellar.TransactionBuilder(sourceAccount, { fee: config.fee})
                     .addOperation(Stellar.Operation.payment({
-                        destination: to,
-                        // Because Stellar allows transaction in many currencies, you must
-                        // specify the asset type. The special "native" asset represents Lumens.
+                        destination: req.body.to,
                         asset: Stellar.Asset.native(),
-                        amount: value
+                        amount: req.body.value
                     }))
-                    // A memo allows you to add your own metadata to a transaction. It's
-                    // optional and does not affect how Stellar treats the transaction.
-                    .addMemo(Stellar.Memo.text('Test Transaction'))
+                    .addMemo(Stellar.Memo.text(req.body.memo))
+                    .setTimeout(config.wait_second)
                     .build()
-                // get the key pair for signing the transaction
-                const pairA = Stellar.Keypair.fromSecret(spender.sk);
-                // Sign the transaction to prove you are actually the person sending it
-                transaction.sign(pairA)
-                return server.submitTransaction(transaction);
+                txn.sign(sourceKeys)
+                return server.submitTransaction(txn)
             })
-            .then((result) => {
-                res.send({ "Msg": JSON.stringify(result, null, 2) })
+            .then(function (result) {
+                res.json({ code: 0, data: result })
             })
-            .catch((err) => {
-                res.send({ "Msg": `Error : Somethis went wrong : ${JSON.stringify(err.response.data.extras)}` })
-            })
-    } else {
-        res.send({ "Msg": `Error : spender  ${to} not found!` })
+    } catch (error) {
+        logger.info("sendTransaction error: ", error)
+        res.json({ code: 405, msg: error.toString()})
     }
 }
 
+const receivePaments = async (req, res) => {
+    const accountId = config.listen_account
+    const payments = server.payments().forAccount(accountId)
+    let data = []
+
+    payments.stream({
+        onmessage: function (payment) {
+            logger.info('payment paging_token: ', payment.paging_token)
+            
+            if (payment.to !== accountId) {
+                return
+            }
+
+            let asset
+            if (payment.asset_type === 'native') {
+                asset = 'lumens'
+            } else {
+                asset = payment.asset_code + ':' + payment.asset_issuer
+            }
+
+            logger.info(payment.amount + ' ' + asset + ' from ' + payment.from)
+            data.push({
+                from: payment.from,
+                amount: payment.amount,
+                asset
+            })
+        },
+
+        onerror: function (error) {
+            logger.info('Error in payment stream', error)
+        }
+    })
+
+    res.json({ code: 0, data })
+}
 
 /* API Routes */
-app.post('/newAccount', createAccount)
-app.post('/balance', getBalance)
-app.post('/payment', getFromFaucet)
-app.post('/recharge', makePayment)
+app.post('/createAccount', createAccount)
+app.post('/getBalance', getBalance)
+app.post('/sendTransaction', sendTransaction)
+app.post('/receivePaments', receivePaments)
 
 app.listen(3090, () => console.log('xlm restful api listening on port 3090'))
-
-process.on('uncaughtException', (err) => {
-    if (err) {
-        logger.error(err)
-    }
-})
-
-process.on('unhandledRejection', (err, promise) => {
-    if (err) {
-        logger.error(err)
-    }
-})
